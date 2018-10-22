@@ -1,0 +1,441 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+		<title>El Futuro de las Promesas</title>
+
+		<link rel="stylesheet" href="css/reveal.css">
+		<link rel="stylesheet" href="css/theme/white.css">
+		<link rel="stylesheet" href="css/custom.css">
+
+		<!-- Theme used for syntax highlighting of code -->
+		<link rel="stylesheet" href="lib/css/vs.css">
+
+		<!-- Printing and PDF exports -->
+		<script>
+			var link = document.createElement( 'link' );
+			link.rel = 'stylesheet';
+			link.type = 'text/css';
+			link.href = window.location.search.match( /print-pdf/gi ) ? 'css/print/pdf.css' : 'css/print/paper.css';
+			document.getElementsByTagName( 'head' )[0].appendChild( link );
+		</script>
+	</head>
+	<body>
+		<div class="reveal promises">
+			<div class="slides">
+				<section>
+					<h1>El Futuro de las Promesas</h1>
+					<p>Carlos Molina A.</p>
+					<span>12 de octubre 2018</span>
+				</section>
+				<section>
+					<h3>Carlos Molina</h3>
+					<p>Desarrollador de software en Kunder</p>
+					<p>Previamente en Heartlytics (telemedicina), y NIU Sushi (delivery comida)</p>
+					<div class="row">
+						<img src="img/image1.jpg" alt="Dani, Horacio y yo">
+						<img src="img/image2.png" alt="Punto">
+					</div>
+
+				</section>
+				<section>
+					<h3>Debemos aprender rápido!</h3>
+					<p>"Experto"</p>
+					<p>Buscamos patrones</p>
+					<p class="fragment fade-in">En ocasiones, debemos desaprender</p>
+					<aside class="notes">
+						Cliente pide, estudiamos una cantidad finita de tiempo.<br>
+						Te conviertes en "experto"<br>
+						Buscamos replicar lo que sabemos funcionó en el pasado. ¡Y está muy bien!<br>
+						¿Quién tiene tiempo para eso? Tenemos que entregar. Y terminamos entregando cosas de este estilo.
+					</aside>
+				</section>
+				<section>
+					<h2>1. Pirámide de la perdición</h2>
+					<pre><code data-trim>
+											// uses promises as callbacks 💩
+											remotedb.allDocs({ include_docs: true })
+											.then(function(result) {
+												const docs = result.rows;
+												docs.forEach(function(element) {
+														localdb.put(element.doc).then(function(response) {
+															alert("Pulled doc with id " + element.doc._id + ", added to local db.");
+														}).catch(function (err) {
+															if (err.name == 'conflict') {
+																localdb.get(element.doc._id).then(function (resp) {
+																	localdb.remove(resp._id, resp._rev).then(function (resp) {
+											// etc, etc, etc...
+										</code></pre>
+					<aside class="notes">
+						¿Notan la forma piramidal? También se le llama "callback-hell", a pesar de que no son callbacks.<br>
+						Las promesas, prometían, no tener este problema.<br>
+						Es dificil entender dónde estás, y cuál es la siguiente línea a ejecutar.
+					</aside>
+				</section>
+				<section>
+					<h2>2. Side effects</h2>
+					<pre><code data-trim>
+											somePromise().then(() => {
+												someOtherPromise();
+											})
+											.then(() => {
+												// I hope "someOtherPromise" has resolved! 😇
+												// Spoiler alert: it hasn't. 😈
+											});
+										</code></pre>
+					<aside class="notes">
+						¿Cómo tener claridad de que la línea anterior ya se ha completado?
+					</aside>
+				</section>
+				<section>
+					<h3>¿Sabes cuál es la diferencia?</h3>
+					<pre><code data-trim>
+										doSomething().then(function () {
+											return doSomethingElse();
+										}); // 1
+
+										doSomething().then(function () {
+											doSomethingElse();
+										}); // 2
+
+										doSomething().then(doSomethingElse() ); // 3
+
+										doSomething().then(doSomethingElse ); // 4
+									</code></pre>
+				</section>
+				<section>
+					<h2>Idea: Entender cómo fueron pensadas las Promesas</h2>
+					<ol>
+						<li>JavaScript</li>
+						<li>Sync vs Async</li>
+					</ol>
+					<aside class="notes">
+						Entender qué son las Promesas, cómo se pensó se usarían, y cómo resolver el 80% de los problemas más comunes con un único truco.<br>
+						JavaScript, es un lenguaje de un único hilo. Muy conveniente para manejar grandes cantidades de eventos.<br>
+						Operación síncrona: se ejecuta en el hilo principal de ejecución. Ej: Operaciones matemáticas, manejo de strings.<br>
+						Operación asíncronas: se ejecuta en fuera del hilo principal. Esperamos un evento para cuando esten listas. Ej: descargar, guardar archivo.
+					</aside>
+				</section>
+				<section>
+					<h3>sync vs callback async</h3>
+					<pre><code data-trim>
+										// sync
+										try {
+											const user = getUser();
+											console.log('Hello ' + user.name);
+										} catch(err) {
+											console.error(err);
+										}
+									</code></pre>
+					<pre class="fragment fade-in"><code data-trim>
+										// callback async
+										getUser(function (err, user) {
+											if (!!err) {
+												return console.error(err);
+											}
+											console.log('Hello ' + user.name);
+										});
+									</code></pre>
+					<aside class="notes">
+						Es muy complicado. Y es sólo llamar a una función asíncrona.<br>
+						Imagina el manejo de errores.<br>
+						Aquí nace el típico código piramidal, o callback hell.
+					</aside>
+				</section>
+				<section>
+					<h3>sync vs Promise async</h3>
+					<pre><code data-trim>
+														// sync
+														try {
+															const user = getUser();
+															console.log('Hello ' + user.name);
+														} catch(err) {
+															console.error(err);
+														}
+													</code></pre>
+					<pre class="fragment fade-in"><code data-trim>
+														// Promise async
+														getUser()
+														.then(user => {
+															console.log('Hello ' + user.name);
+														})
+														.catch((err) => console.error(err));
+													</code></pre>
+					<aside class="notes">
+						Es más similar al código síncrono.<br>
+						El código se vuelve procedural<br>
+						Manejo de errores es similar a un try/catch.
+					</aside>
+				</section>
+				<section>
+					<h1>2 trucos fundamentales</h1>
+				</section>
+				<section>
+					<h2>1. Pirámide de la perdición</h2>
+					<pre><code data-trim>
+						// uses promises as callbacks 💩
+						remotedb.allDocs({ include_docs: true })
+						.then(function(result) {
+							const docs = result.rows;
+							docs.forEach(function(element) {
+									localdb.put(element.doc).then(function(response) {
+										alert("Pulled doc with id " + element.doc._id + ", added to local db.");
+									}).catch(function (err) {
+										if (err.name == 'conflict') {
+											localdb.get(element.doc._id).then(function (resp) {
+												localdb.remove(resp._id, resp._rev).then(function (resp) {
+						// etc, etc, etc...
+					</code></pre>
+					<aside class="notes">
+						¿Recuerdan la pirámide de la perdición?<br>
+						En lugar de poner un `.then` dentro de una Promesa, **retorna una promesa**.
+					</aside>
+				</section>
+				<section>
+					<h2>1. Pirámide de la perdición</h2>
+					<pre><code data-trim>
+						// chain promises 🚂🚃🚃🚃
+						remotedb.allDocs({ include_docs: true })
+						.then(allDocs => localdb.put(...) )
+						.then(resultOfPut => localdb.get(...) )
+						.then(resultOfGet => localdb.put(...) )
+						.catch(err => console.error(err) );
+					</code></pre>
+					<h3 class="fragment fade-in">Truco F.1: Encadena las promesas</h3>
+					<aside class="notes">
+						Las promesas fueron pensadas para ser encadenadas.
+					</aside>
+				</section>
+				<section>
+					<h2>2. Evita los side effects</h2>
+					<pre><code data-trim>
+						somePromise().then(() => {
+							someOtherPromise();
+						})
+						.then(() => {
+							// I hope "someOtherPromise" has resolved! 😇
+							// Spoiler alert: it hasn't. 😈
+						});
+					</code></pre>
+					<aside class="notes">
+						¿Cómo estar seguros de que la "someOtherPromise" ha terminado?
+					</aside>
+				</section>
+				<section>
+					<h2>2. Evita los side effects</h2>
+					<pre><code data-trim>
+						somePromise().then(() => {
+							return someOtherPromise();  // return!
+						})
+						.then(result => {
+							// "someOtherPromise" has resolved! 😇
+							// I also has its result
+						});
+					</code></pre>
+					<h3 class="fragment fade-in">Truco F.2: Retorna. Siempre retorna</h3>
+					<aside class="notes">
+						"somePromise" se ejecuta. Cuando esté listo, retornará "someOtherPromise".<br>
+						Y cuando esta última promesa esté lista, se llamará el siguiente bloque `.then`.<br>
+						Moraleja: Siempre retorna. Ya sea un valor síncrono o asíncrono, siempre retorna.
+					</aside>
+				</section>
+				<section>
+					<h1>3 trucos avanzados</h1>
+				</section>
+				<section>
+					<h2>1. ¿Cómo crear una Promesa?</h2>
+					<pre><code data-trim>
+						// sync
+						Promise.resolve(42);
+						Promise.reject(new Error('Bad parameter'));
+
+						// async
+						new Promise((resolve, reject) => {
+							fs.readFile('myfile.txt', (err, file) => {
+								if (err) {
+									return reject(err);
+								}
+								resolve(file);
+							});
+						});
+					</code></pre>
+					<p><strong>Nunca uses deferred</strong>.</p>
+					<h3 class="fragment fade-in">Truco A.1: Promise.resolve, Promise.reject o new Promise()</h3>
+					<aside class="notes">
+						Si ves defer en el código, seguro lo puedes reemplazar por alguna de estas opciones.
+					</aside>
+				</section>
+				<section>
+					<h2>2. ¿Cómo correr una lista de promesas en paralelo?</h2>
+					<pre><code data-trim>
+						// I want to remove() all docs
+						db.allDocs({include_docs: true})
+						.then(result => {
+							result.rows.forEach(row => {
+								db.remove(row.doc);
+							});
+						})
+						.then(() => {
+							// I naively believe all docs have been removed() now! 💩
+						});
+					</code></pre>
+					<aside class="notes">
+						¿Cuál es el problema de este código?<br>
+						Olvidaste retornar.<br>
+						Debes esperar que toda una lista de Promesas resuelva. `Promise.all`.
+					</aside>
+				</section>
+				<section>
+					<h2>2. ¿Cómo correr una lista de promesas en paralelo?</h2>
+					<pre><code data-trim>
+						// I want to remove() all docs
+						db.allDocs({include_docs: true})
+						.then(result => {
+							const removePromises = result.rows.map(row => {
+								return db.remove(row.doc);
+							};
+							return Promise.all(removePromises);
+						})
+						.then(arrayOfResults => {
+							// All docs have really been removed() now!
+						});
+					</code></pre>
+					<h3 class="fragment fade-in">Truco A.2: Retorna Promise.all con una lista</h3>
+					<aside class="notes">
+						Promise.all recibe un arreglo con promesas, y retorna una promesa que sólo resuelve cuando cada una de sus promesas
+						recibidas ha resuelto.
+						Promise.all es el equivalente asíncrono de un for-loop.
+
+						Además, Promise.all retorna un arreglo con el resultado de cada promesa a la siguiente función, lo cuál es muy
+						conveniente.
+						Promise.all queda como rejected, o falla, si es que cualquiera de sus sub-promesas falla. Muy útil.
+					</aside>
+				</section>
+				<section>
+					<h2>3. Unhappy-path Driven Development</h2>
+					<pre><code data-trim>
+						somePromise()
+						.then(() => anotherPromise() )
+						.then(() => yetAnotherPromise() )
+						.catch(err => console.error(err) ); // <-- badass
+					</code></pre>
+					<h3 class="fragment fade-in">Truco A.3: Maneja tus errores</h3>
+					<aside class="notes">
+						Siempre parte programando los casos borde, los errores. Después se te va a olvidar.<br>
+						Los programadores somos muy confiados y se nos olvida poner el .catch()<br>
+						Cualquier error en la ejecución de tu programa será desaparecido. Esto si es duro de debbuggear.<br>
+					</aside>
+				</section>
+				<section>
+					<h3>Ahora ¿sabes cuál es la diferencia?</h3>
+					<pre><code data-trim>
+						return doSomething().then(function () {
+							return doSomethingElse();
+						}).then(finalHandler); // 1
+
+						return doSomething().then(function () {
+							doSomethingElse();
+						}).then(finalHandler); // 2
+
+						return doSomething()
+						.then(doSomethingElse() )
+						.then(finalHandler); // 3
+
+						return doSomething()
+						.then(doSomethingElse)
+						.then(finalHandler); // 4
+					</code></pre>
+					<aside class="notes">
+						Ahora, ¿saben la diferencia?<br>
+						1. ---doSomething--- ---doSomethingElse--- ---finalHandler---.
+						2. ---doSomething---
+								---doSomethingElse---
+																---finalHandler---.
+						3. ---doSomething---
+							 ---doSomethingElse(undefined)---
+																---finalHandler---.
+						4. ---doSomething--- ---doSomethingElse(r)--- ---finalHandler---.
+					</aside>
+				</section>
+				<section>
+					<h1>El Futuro de las Promesas</h1>
+					<aside class="notes">
+						¿Han escuchado de async/await? Apareció en C++ como corutinas, y en .NET con C# y F# en la primera década del 2000.<br>
+						¿Cómo podemos hacer que código asíncrono se vea más similar al código síncrono?
+					</aside>
+				</section>
+				<section>
+					<h3>sync vs async/await</h3>
+					<pre><code data-trim>
+						// sync
+						function printAndReturnName() {
+							try {
+								const user = getUser();
+								console.log('Hello ' + user.name);
+								return user.name;
+							} catch(err) {
+								console.error(err);
+							}
+						}
+					</code></pre>
+					<pre class="fragment fade-in"><code data-trim>
+						// async/await 😎
+						async function printAndReturnName() {
+							try {
+								const user = await getUser();
+								console.log('Hello ' + user.name);
+								return user.name;
+							} catch(err) {
+								console.error(err);
+							}
+						}
+					</code></pre>
+					<aside class="notes">
+						¿Notan la diferencia?<br>
+						Función debe llevar el keyword `async`, que indica el resultado de la función siempre será una promesa.<br>
+						Usa el keyword `await` para esperar que una promesa se resuelva. Luego contínua con tu código :)
+					</aside>
+				</section>
+				<section>
+					<img src="img/async-support.png">
+					<aside class="notes">
+						85% de la población global lo soporta.<br>
+						En Chile, 92%<br>
+						Igual puedes usar un transpilador, como Babel o TypeScript, que se encargan de que funcione en todos los dispositivos del cliente.
+					</aside>
+				</section>
+				<section>
+					<h1>Resumen</h1>
+					<aside class="notes">
+						Si queremos realmente entender una tecnología, debemos dejar ciertos hábitos atrás.<br>
+						Dedicarle tiempo.<br>
+						Pero, ¿por qué?<br>
+						¿Qué pasaría si usáramos las tecnologías de la forma en que fueron diseñadas?<br>
+						Menos horas debuggeando. Menos proyectos que nadie quiere trabajar en ellos.<br>
+						Códigos en que de gusto llegar a trabajar.<br>
+						Y esta idea es algo que creo vale la pena intentar. Muchas gracias.
+					</aside>
+				</section>
+			</div>
+		</div>
+
+		<script src="lib/js/head.min.js"></script>
+		<script src="js/reveal.js"></script>
+
+		<script>
+			// More info about config & dependencies:
+			// - https://github.com/hakimel/reveal.js#configuration
+			// - https://github.com/hakimel/reveal.js#dependencies
+			Reveal.initialize({
+				dependencies: [
+					{ src: 'plugin/markdown/marked.js' },
+					{ src: 'plugin/markdown/markdown.js' },
+					{ src: 'plugin/notes/notes.js', async: true },
+					{ src: 'plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } }
+				]
+			});
+		</script>
+	</body>
+</html>
